@@ -28,11 +28,11 @@ void MainWindow::on_sendBtn_clicked()
         qInfo() << "Can't open a file";
         return;
     }
-    QTextStream toNetwork(&hostPort);
+    QTextStream fromFile(&hostPort);
     QString host;
     int port;
-    toNetwork >> host;
-    toNetwork >> port;
+    fromFile >> host;
+    fromFile >> port;
     hostPort.close();
     manager->connectToHost(host, port);
     QNetworkRequest request{ QUrl("http://" + host + "/index.php?msg=" + ui->inputCmd->text()) };
