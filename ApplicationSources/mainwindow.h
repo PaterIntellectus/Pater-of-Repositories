@@ -8,6 +8,8 @@
 #include <QNetworkRequest>
 #include <QNetworkReply>
 #include <QNetworkAccessManager>
+#include <QUrl>
+#include <QUrlQuery>
 
 QT_BEGIN_NAMESPACE
 namespace Ui { class MainWindow; }
@@ -23,6 +25,8 @@ public:
 
 private slots:
     void on_sendBtn_clicked();
+
+    void handleReply(QNetworkReply* reply);
 
 private:
     Ui::MainWindow *ui;
