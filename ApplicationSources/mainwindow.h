@@ -20,18 +20,25 @@ class MainWindow : public QMainWindow
     Q_OBJECT
 
 public:
-    MainWindow(const QString& fileName = "HostPort", QWidget *parent = nullptr);
+    MainWindow(const QString &fileName = "HostPort", QWidget *parent = nullptr);
     ~MainWindow();
 
 private slots:
     void on_sendBtn_clicked();
 
-    void handleReply(QNetworkReply* reply);
+    void handleReply(QNetworkReply *reply);
+
+    void setUrl(const QString &scheme,
+                const QString &host, const QString &port,
+                const QString &key,  const QString &value);
 
 private:
     Ui::MainWindow *ui;
-    QFile hostPort;
-    QNetworkAccessManager* manager;
+    QNetworkAccessManager *manager;
     SettingWindow *settingsWindow;
+    QMessageBox *errorMessage;
+
+    QFile hostPort;
+    QUrl url{};
 };
 #endif // MAINWINDOW_H

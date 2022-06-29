@@ -30,6 +30,7 @@ QtApplication {
         ]
     }
 
+    consoleApplication: false
     install: true
     installDir: qbs.targetOS.contains("qnx") ? FileInfo.joinPaths("/tmp", name, "bin") : base
 }
