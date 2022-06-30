@@ -28,7 +28,7 @@
         $file = file($filename);
         if ($file)
         {
-            $line = $file[0];
+            $line = strval($file[0]);
             unset($file[0]);
             file_put_contents($filename, $file);
         }
@@ -36,7 +36,7 @@
         {
             $line = 'NO';
         }
-        return $line;
+        return trim($line);
     }
 
     $msg = !empty($_GET['msg']) ? $_GET['msg'] : '';
