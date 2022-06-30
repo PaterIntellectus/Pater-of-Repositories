@@ -11,9 +11,17 @@ MainWindow::MainWindow(const QString &fileName,QWidget *parent)
     , hostPort{ fileName }
 {
     ui->setupUi(this);
+
+    // просто наименования для окон
     errorMessage->setWindowTitle("Произошла Ошибочка :(");
     this->setWindowTitle("Request Manager");
+
+    // связывание Сигналов со Слотами
+    // клик на кнопку 'Настройки сервера' открывает окно настроек
     connect(ui->settingsBtn, &QPushButton::clicked, settingsWindow, &SettingWindow::show);
+    // клик на кнопку 'Отправить' вызывает функцию SendRequest, отправляющую запрос
+    connect(ui->sendBtn, &QPushButton::clicked, this, &MainWindow::sendRequest);
+    // получение запроса вызывает функцию handleReply, обрабатывающую ответ
     connect(manager, &QNetworkAccessManager::finished, this, &MainWindow::handleReply);
 }
 
@@ -25,7 +33,7 @@ MainWindow::~MainWindow()
     delete ui;
 }
 
-void MainWindow::on_sendBtn_clicked()
+void MainWindow::sendRequest()
 {
     if(!hostPort.open(QIODevice::ReadOnly))
     {
@@ -33,6 +41,7 @@ void MainWindow::on_sendBtn_clicked()
         errorMessage->show();
         return;
     }
+    // формирование аргументов для создания url
     QString host{ hostPort.readLine().trimmed() };
     QString port{ hostPort.readLine().trimmed() };
     hostPort.close();
@@ -52,15 +61,18 @@ void MainWindow::on_sendBtn_clicked()
         errorMessage->show();
         return;
     }
+    // формирование url
     setUrl("http", host, port, "msg", msg);
+
+    // отправка запроса
     QNetworkRequest request{ url };
     manager->get(request);
+
 }
 
 void MainWindow::handleReply(QNetworkReply *reply)
 {
-
-    ui->displayCmd->setText(reply->readAll());
+    ui->displayCmd->setText(reply->readAll().trimmed());
 }
 
 void MainWindow::setUrl(const QString &scheme, const QString &host, const QString &port, const QString &key, const QString &value)
