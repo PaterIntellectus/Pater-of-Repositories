@@ -3,6 +3,7 @@
 
 #include <QDialog>
 #include <QFile>
+#include <QUrl>
 #include <QMessageBox>
 
 namespace Ui {
@@ -14,29 +15,42 @@ class SettingWindow : public QDialog
     Q_OBJECT
 
 public:
-    SettingWindow(const QString &fileName, QWidget *parent = nullptr);
+    SettingWindow(QSharedPointer<QUrl> _url, QWidget *parent = nullptr);
     ~SettingWindow();
 
-private:
-    // выводит сообщение о проблемах с файлом
-    void fileError();
-
 private slots:
-    // запоняет строки интерфейса из файла
-    bool fillLines();
-    // наполняет файл строками из интерфейса
-    // (я бы просто выставил дефолтные аргументы
-    // но аргументы типа ui->hostLine->text() нельзя использовать до создания оюъекта GUI)
-    bool fillFileByLines();
-    // делает то же, что и предыдущая функция, но с аргументами
-    bool fillFile(const QString &host, const QString &port);
+    void updateLines();
+    // запоняет строки интерфейса строками из файла
+
+    void updateFile();
+    // запоняет строки файла строками из интерфейса
+
+    void updateUrl();
+    // обновляет параметры url
 
 private:
-    // объект GUI
-    Ui::SettingWindow *ui;
-    // объект файла
-    QFile hostPort;
+    void showError(const QString& title, const QString& text);
+    // показывает окно текстом
 
+signals:
+    void urlChanged();
+
+private:
+    void fileError(const QString &str);
+    // выводит сообщение о проблемах с файлом
+
+private:
+    Ui::SettingWindow *ui;
+    // объект GUI
+
+    QFile urlDataFile;
+    // объект файла
+
+    QSharedPointer<QUrl> url;
+    // объект веб-адреса
+
+    QMessageBox *errorMessage;
+    // окно для вывода ошибок
 };
 
 #endif // SETTINGWINDOW_H

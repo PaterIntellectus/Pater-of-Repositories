@@ -1,35 +1,33 @@
 #include "settingwindow.h"
 #include "ui_settingwindow.h"
 
-SettingWindow::SettingWindow(const QString &fileName, QWidget *parent)
+SettingWindow::SettingWindow(QSharedPointer<QUrl> _url, QWidget *parent)
       : QDialog(parent)
       , ui(new Ui::SettingWindow)
-      , hostPort{ fileName }
+      , urlDataFile{ "UrlData" }
+      , url{ _url }
+      , errorMessage{ new QMessageBox(this) }
 {
-    // формирование GUI из файлов .ui
     ui->setupUi(this);
-
-    // именование окна
     this->setWindowTitle("Настройщик сети");
 
-    // если файл не существует, то будет создан
-    if (!hostPort.size())
-    {
-        fillFile("localhost", "8080");
-    }
-    // взятие строк из файла для заполнения строкинтерфейса
-    fillLines();
-
-    // связывание Сигналов со Слотами
-    // кнопка Принятия заполняет файл новыми значениями, и закрывает окно настроек
-    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &SettingWindow::fillFileByLines);
+    // связывание Сигналов со Слотами (Фактически одна функция, вызывающая другую)
+    connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &SettingWindow::urlChanged);
     connect(ui->buttonBox, &QDialogButtonBox::accepted, this, &SettingWindow::close);
-    // кнопка Отмены заполняет поля старыми значениями из файла, и закрывает окно настроек
-    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &SettingWindow::fillLines);
+    connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &SettingWindow::updateLines);
     connect(ui->buttonBox, &QDialogButtonBox::rejected, this, &SettingWindow::close);
-    // окно продолжает существовать после закрытия,
-    // ведь на него есть указатель в MainWindow,
-    // поэтому перезапись значений в полях имеет значение
+    connect(this, &SettingWindow::urlChanged, &SettingWindow::updateUrl);
+    connect(this, &SettingWindow::urlChanged, &SettingWindow::updateFile);
+
+    if (!urlDataFile.size())
+    {
+        urlDataFile.open(QIODevice::WriteOnly);
+        QTextStream toFile{ &urlDataFile };
+        toFile << "localhost\n" << 8080;
+        urlDataFile.close();
+    }
+    updateLines();
+    updateUrl();
 }
 
 SettingWindow::~SettingWindow()
@@ -37,53 +35,68 @@ SettingWindow::~SettingWindow()
     delete ui;
 }
 
-bool SettingWindow::fillLines()
+void SettingWindow::updateLines()
 {
-    if (!hostPort.open(QIODevice::ReadOnly))
+    if (!urlDataFile.open(QIODevice::ReadOnly))
     {
-        fileError();
-        return false;
+        showError("Неверные данные",
+                  "Файл не может быть открыт для Чтения");
+        return;
     }
-    // перезапись осуществляется только если строки были изменены
-    QString host{ hostPort.readLine().trimmed() };
-    if(host != ui->hostLine->text().trimmed())
-    {
-        ui->hostLine->setText(host);
-    }
-    QString port{ hostPort.readLine().trimmed() };
-    if(port != ui->portLine->text().trimmed())
-    {
-        ui->portLine->setText(port);
-    }
-    hostPort.close();
-    return true;
+
+    ui->hostLine->setText(urlDataFile.readLine().trimmed());
+    ui->portLine->setText(urlDataFile.readLine().trimmed());
+
+    urlDataFile.close();
 }
 
-bool SettingWindow::fillFileByLines() // СУЩЕСТВУЕТ ТОЛЬКО ЛИШЬ ДЛЯ ПРИВЯЗКИ К СИГНАЛУ
+void SettingWindow::updateFile()
 {
-    return fillFile(ui->hostLine->text(), ui->portLine->text());
-}
-
-bool SettingWindow::fillFile(const QString& host, const QString& port)
-{
-    if (!hostPort.open(QIODevice::WriteOnly))
+    if (!urlDataFile.open(QIODevice::WriteOnly))
     {
-        fileError();
-        return false;
+        showError("Проблемы с файлом",
+                  "Файл не может быть открыт для Записи");
+        return;
     }
-    // поток необходим для записи В файл
-    QTextStream toFile{ &hostPort };
-    toFile << host.trimmed() + '\n'
-           << port.trimmed();
-    hostPort.close();
-    return true;
+    QTextStream toFile{ &urlDataFile };
+    toFile << ui->hostLine->text().trimmed() + '\n'
+           << ui->portLine->text().trimmed();
+    urlDataFile.close();
 }
 
-void SettingWindow::fileError()
+void SettingWindow::updateUrl()
 {
-    QMessageBox *error{ new QMessageBox(this) };
-    error->setWindowTitle("Что-то с файлом");
-    error->setText("Файл " + hostPort.fileName() + " не может быть открыт или прочтён,\n"
-                   "проверьте его наличие в папке с приложением");
-    error->show();
+    QString host{ ui->hostLine->text().trimmed() };
+    QString port{ ui->portLine->text().trimmed() };
+    int i_port{ port.toInt() };
+    if (host.isEmpty())
+    {
+        showError("Неверные данные",
+                  "Хост не может быть пустым значеним");
+        return;
+    }
+    if (port.isEmpty())
+    {
+        showError("Неверные данные",
+                  "Порт не может пустым\n");
+        return;
+    }
+    if (i_port < 0 || i_port > 65535)
+    {
+        showError("Неверные данные",
+                  "Порт не может быть отрицательным\n"
+                  "или превышать значение 65535\n"
+                  "Порт: " + port);
+        return;
+    }
+    url->setScheme("http");
+    url->setHost(host);
+    url->setPort(i_port);
+}
+
+void SettingWindow::showError(const QString &title, const QString &text)
+{
+    errorMessage->setWindowTitle(title);
+    errorMessage->setText(text);
+    errorMessage->show();
 }

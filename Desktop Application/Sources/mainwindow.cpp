@@ -2,72 +2,42 @@
 #include "ui_mainwindow.h"
 #include "settingwindow.h"
 
-MainWindow::MainWindow(const QString &fileName,QWidget *parent)
+MainWindow::MainWindow(QWidget *parent)
     : QMainWindow(parent)
     , ui(new Ui::MainWindow)
+    , url{ new QUrl }
     , manager{ new QNetworkAccessManager(this) }
-    , settingsWindow{ new SettingWindow(fileName, this) }
+    , settingsWindow{ new SettingWindow(url, this) }
     , errorMessage{ new QMessageBox(this) }
-    , hostPort{ fileName }
 {
     ui->setupUi(this);
-
-    // просто наименования для окон
     errorMessage->setWindowTitle("Произошла Ошибочка :(");
     this->setWindowTitle("Request Manager");
 
-    // связывание Сигналов со Слотами
-    // клик на кнопку 'Настройки сервера' открывает окно настроек
-    connect(ui->settingsBtn, &QPushButton::clicked, settingsWindow, &SettingWindow::show);
-    // клик на кнопку 'Отправить' вызывает функцию SendRequest, отправляющую запрос
+    // связывание Сигналов со Слотами (Фактически одна функция, вызывающая другую)
+    connect(ui->sendBtn, &QPushButton::clicked, this, &MainWindow::queryChanged);
     connect(ui->sendBtn, &QPushButton::clicked, this, &MainWindow::sendRequest);
-    // получение запроса вызывает функцию handleReply, обрабатывающую ответ
+    connect(ui->settingsBtn, &QPushButton::clicked, settingsWindow, &SettingWindow::show);
     connect(manager, &QNetworkAccessManager::finished, this, &MainWindow::handleReply);
+    connect(this, &MainWindow::queryChanged, &MainWindow::updateQuery);
 }
 
 MainWindow::~MainWindow()
 {
-    delete errorMessage;
-    delete settingsWindow;
-    delete manager;
     delete ui;
 }
 
 void MainWindow::sendRequest()
 {
-    if(!hostPort.open(QIODevice::ReadOnly))
+    if (ui->inputCmd->text().trimmed().isEmpty())
     {
-        errorMessage->setText("Невозможно открыть файл с данными сервера.");
+        errorMessage->setWindowTitle("Проблема с запросом");
+        errorMessage->setText("Нельзя отправить пустой запрос");
         errorMessage->show();
         return;
     }
-    // формирование аргументов для создания url
-    QString host{ hostPort.readLine().trimmed() };
-    QString port{ hostPort.readLine().trimmed() };
-    hostPort.close();
-    if (host.isEmpty() || port.isEmpty() || port.toInt() < 0)
-    {
-        errorMessage->setText(
-                    "Имя хоста или порт не верны:"
-                    "\nХост: " + host +
-                    "\nПорт: " + port);
-        errorMessage->show();
-        return;
-    }
-    QString msg{ ui->inputCmd->text().trimmed() };
-    if (msg.isEmpty())
-    {
-        errorMessage->setText("Вы пытаетесь отправить пустую команду.");
-        errorMessage->show();
-        return;
-    }
-    // формирование url
-    setUrl("http", host, port, "msg", msg);
-
-    // отправка запроса
-    QNetworkRequest request{ url };
+    QNetworkRequest request{ *url };
     manager->get(request);
-
 }
 
 void MainWindow::handleReply(QNetworkReply *reply)
@@ -75,12 +45,9 @@ void MainWindow::handleReply(QNetworkReply *reply)
     ui->displayCmd->setText(reply->readAll().trimmed());
 }
 
-void MainWindow::setUrl(const QString &scheme, const QString &host, const QString &port, const QString &key, const QString &value)
+void MainWindow::updateQuery()
 {
-    url.setScheme(scheme);
-    url.setHost(host);
-    url.setPort(port.toInt());
     QUrlQuery query;
-    query.addQueryItem(key, value);
-    url.setQuery(query);
+    query.addQueryItem("msg", ui->inputCmd->text().trimmed());
+    url->setQuery(query);
 }
